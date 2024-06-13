@@ -7,6 +7,7 @@ from tools.dataset_converters import kitti_converter as kitti
 from tools.dataset_converters import lyft_converter as lyft_converter
 from tools.dataset_converters import nuscenes_converter as nuscenes_converter
 from tools.dataset_converters import semantickitti_converter
+from tools.dataset_converters import tier4dataset_converter as tier4_converter
 from tools.dataset_converters.create_gt_database import (
     GTDatabaseCreater, create_groundtruth_database)
 from tools.dataset_converters.update_infos_to_v2 import update_pkl_infos
@@ -85,6 +86,34 @@ def nuscenes_data_prep(root_path,
     update_pkl_infos('nuscenes', out_dir=out_dir, pkl_path=info_val_path)
     create_groundtruth_database(dataset_name, root_path, info_prefix,
                                 f'{info_prefix}_infos_train.pkl')
+
+
+def tier4_data_prep(root_path,
+                    info_prefix,
+                    version,
+                    dataset_name,
+                    out_dir,
+                    max_sweeps=1):
+    """Prepare data related to Tier4 dataset.
+
+    Related data consists of '.pkl' files recording basic infos,
+    2D annotations and groundtruth database.
+
+    Args:
+        root_path (str): Path of dataset root.
+        info_prefix (str): The prefix of info filenames.
+        version (str): Dataset version.
+        dataset_name (str): The dataset class name.
+        out_dir (str): Output directory of the groundtruth database info.
+        max_sweeps (int, optional): Number of input consecutive frames.
+            Default: 10
+    """
+    tier4_converter.create_tier4_infos(
+        root_path, info_prefix, version=version, max_sweeps=max_sweeps)
+    info_train_path = osp.join(out_dir, f'{info_prefix}_infos_train.pkl')
+    info_val_path = osp.join(out_dir, f'{info_prefix}_infos_val.pkl')
+    update_pkl_infos('tier4', out_dir=out_dir, pkl_path=info_train_path)
+    update_pkl_infos('tier4', out_dir=out_dir, pkl_path=info_val_path)
 
 
 def lyft_data_prep(root_path, info_prefix, version, max_sweeps=10):
@@ -268,6 +297,12 @@ parser.add_argument(
     default='./data/kitti',
     required=False,
     help='name of info pkl')
+parser.add_argument(
+    '--annotation-hz',
+    type=int,
+    default='10',
+    required=False,
+    help='annotation hz of the dataset')
 parser.add_argument('--extra-tag', type=str, default='kitti')
 parser.add_argument(
     '--workers', type=int, default=4, help='number of threads to be used')
@@ -334,6 +369,14 @@ if __name__ == '__main__':
                 dataset_name='NuScenesDataset',
                 out_dir=args.out_dir,
                 max_sweeps=args.max_sweeps)
+    elif args.dataset == 'T4Dataset':
+        tier4_data_prep(
+            root_path=args.root_path,
+            info_prefix=args.extra_tag,
+            version=args.version,
+            dataset_name='T4Dataset',
+            out_dir=args.out_dir,
+            max_sweeps=args.max_sweeps)
     elif args.dataset == 'lyft':
         train_version = f'{args.version}-train'
         lyft_data_prep(
